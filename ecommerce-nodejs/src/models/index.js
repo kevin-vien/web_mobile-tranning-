@@ -42,7 +42,10 @@ const defineModels = () => {
     // Ví dụ: "[1,2,3]" → danh sách sản phẩm có ID 1, 2, 3
     // DataTypes.TEXT: Kiểu TEXT (không giới hạn độ dài)
     favourite_product: { type: DataTypes.TEXT }
-  }, { tableName: 'users' }); // tableName: 'users' → tên bảng trong database là 'users' (không phải 'Users')
+  }, { 
+    tableName: 'users',  // tableName: 'users' → tên bảng trong database là 'users' (không phải 'Users')
+    timestamps: true     // timestamps: true → tự động thêm createdAt, updatedAt (sẽ map thành created_at, updated_at vì underscored: true)
+  });
 
   // Định nghĩa model Category (bảng categories trong database)
   // Category: Danh mục sản phẩm (ví dụ: Điện thoại, Laptop, Phụ kiện)
@@ -55,7 +58,10 @@ const defineModels = () => {
     
     // description: Mô tả danh mục, không bắt buộc, kiểu TEXT (không giới hạn độ dài)
     description: { type: DataTypes.TEXT }
-  }, { tableName: 'categories' }); // Tên bảng trong database là 'categories'
+  }, { 
+    tableName: 'categories',  // Tên bảng trong database là 'categories'
+    timestamps: true           // timestamps: true → tự động thêm createdAt, updatedAt
+  });
 
   // Định nghĩa model Product (bảng products trong database)
   // Product: Sản phẩm trong cửa hàng
@@ -122,7 +128,10 @@ const defineModels = () => {
     // status: Trạng thái đơn hàng, có 4 giá trị: 'pending', 'shipped', 'done', 'cancel'
     // defaultValue: 'pending' → mặc định là 'pending' (chờ xử lý)
     status: { type: DataTypes.ENUM('pending', 'shipped', 'done', 'cancel'), defaultValue: 'pending' }
-  }, { tableName: 'orders' }); // Tên bảng trong database là 'orders'
+  }, { 
+    tableName: 'orders',  // Tên bảng trong database là 'orders'
+    timestamps: false      // timestamps: false vì bảng orders không có created_at, updated_at
+  });
 
   // Định nghĩa model OrderDetail (bảng order_details trong database)
   // OrderDetail: Chi tiết đơn hàng (mỗi sản phẩm trong đơn hàng là 1 record)
@@ -143,7 +152,10 @@ const defineModels = () => {
     // price: Giá sản phẩm tại thời điểm đặt hàng (lưu lại để không bị ảnh hưởng khi giá thay đổi)
     // Kiểu DECIMAL(12,2), bắt buộc
     price: { type: DataTypes.DECIMAL(12,2), allowNull: false }
-  }, { tableName: 'order_details' }); // Tên bảng trong database là 'order_details'
+  }, { 
+    tableName: 'order_details',  // Tên bảng trong database là 'order_details'
+    timestamps: false            // Không có timestamps trong bảng order_details
+  });
 
   // Định nghĩa model Review (bảng reviews trong database)
   // Review: Đánh giá sản phẩm từ người dùng
@@ -178,7 +190,10 @@ const defineModels = () => {
     
     // link: Link khi click vào banner (ví dụ: /products/1), tối đa 255 ký tự, không bắt buộc
     link: { type: DataTypes.STRING(255) }
-  }, { tableName: 'banners' }); // Tên bảng trong database là 'banners'
+  }, { 
+    tableName: 'banners',  // Tên bảng trong database là 'banners'
+    timestamps: false      // Không có timestamps trong bảng banners
+  });
 
   // ======================================================================
   // ASSOCIATIONS: Định nghĩa mối quan hệ giữa các bảng

@@ -179,10 +179,14 @@ async function listProducts(req, res) {
     const products = await Product.findAll(options);
 
     // ✅ Trả kết quả về client (dạng JSON)
-    return res.json(products);
+    // Sequelize tự động serialize, nhưng đảm bảo dữ liệu là plain objects
+    const productsData = products.map(p => p.toJSON ? p.toJSON() : p);
+    console.log(`Returning ${productsData.length} products for category: ${category || 'all'}`);
+    return res.json(productsData);
   } catch (err) {
     // ❌ Nếu có lỗi (lỗi server hoặc kết nối DB)
-    return res.status(500).json({ message: "Server error" });
+    console.error('listProducts error:', err);
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 }
 

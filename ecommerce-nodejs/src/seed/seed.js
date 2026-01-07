@@ -36,6 +36,7 @@ const { defineModels } = require('../models');
         brand: 'Apple',
         ram: '6GB',
         storage: '128GB',
+        image_url: 'uploads/products/Smart_phones/iphone/iphone_1.webp',
         category_id: phone.category_id
       }
     });
@@ -49,6 +50,7 @@ const { defineModels } = require('../models');
         brand: 'Samsung',
         ram: '8GB',
         storage: '256GB',
+        image_url: 'uploads/products/Smart_phones/samsung/samsung_1.webp',
         category_id: phone.category_id
       }
     });
@@ -62,6 +64,7 @@ const { defineModels } = require('../models');
         brand: 'Apple',
         ram: '8GB',
         storage: '128GB',
+        image_url: 'uploads/products/Laptops/macbook/mac_1.webp',
         category_id: tablet.category_id
       }
     });
@@ -75,6 +78,7 @@ const { defineModels } = require('../models');
         brand: 'Xiaomi',
         ram: '8GB',
         storage: '256GB',
+        image_url: 'uploads/products/Tables/pc_1.webp',
         category_id: tablet.category_id
       }
     });
@@ -88,6 +92,7 @@ const { defineModels } = require('../models');
         brand: 'Apple',
         ram: '-',
         storage: '-',
+        image_url: 'uploads/products/Accessories/ariport/blu_1.webp',
         category_id: accessory.category_id
       }
     });
@@ -101,6 +106,7 @@ const { defineModels } = require('../models');
         brand: 'Samsung',
         ram: '-',
         storage: '-',
+        image_url: 'uploads/products/Accessories/voice/voice_1.webp',
         category_id: accessory.category_id
       }
     });

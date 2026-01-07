@@ -23,11 +23,14 @@ router.get('/', async (req, res) => {
     // Banner.findAll(): Tìm tất cả records trong bảng banners
     const banners = await Banner.findAll();
     
-    // Trả về danh sách banner
-    return res.json(banners);
+    // Trả về danh sách banner (Sequelize tự động serialize)
+    const bannersData = banners.map(b => b.toJSON ? b.toJSON() : b);
+    return res.json(bannersData);
   } catch (err) {
+    // Log lỗi để debug
+    console.error('Error in /api/banners:', err);
     // Nếu có lỗi → trả lỗi 500 Internal Server Error
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

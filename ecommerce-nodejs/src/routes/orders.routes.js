@@ -356,28 +356,100 @@ router.get("/:id", authenticate, async (req, res) => {
 // :id là ID của user cần xem đơn hàng
 router.get("/user/:id", authenticate, async (req, res) => {
   try {
+    const userId = Number(req.params.id);
+    const requestUserId = req.user.user_id;
+    
+    console.log('GET /api/orders/user/:id - Requested user ID:', userId, 'Request user ID:', requestUserId);
+    
     // Kiểm tra quyền truy cập:
     // - Admin có thể xem đơn hàng của bất kỳ user nào
     // - User chỉ có thể xem đơn hàng của chính mình
-    if (
-      req.user.role !== "admin" &&
-      Number(req.params.id) !== req.user.user_id
-    ) {
+    if (req.user.role !== "admin" && userId !== requestUserId) {
+      console.log('Access denied: User', requestUserId, 'trying to access orders for user', userId);
       return res.status(403).json({ message: "Forbidden" });
+    }
+    
+    // Validate user_id
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
     }
     
     // Tìm tất cả đơn hàng của user có user_id = req.params.id
     // include: Join với OrderDetail và Product để lấy thông tin chi tiết
+    console.log('Querying orders for user_id:', userId);
+    
     const orders = await Order.findAll({
-      where: { user_id: req.params.id },  // Lọc theo user_id
-      include: [{ model: OrderDetail, include: [Product] }],  // Include chi tiết và sản phẩm
+      where: { 
+        user_id: userId  // Lọc theo user_id
+      },
+      include: [{ 
+        model: OrderDetail, 
+        required: false,  // LEFT JOIN để lấy cả đơn hàng không có chi tiết
+        include: [{
+          model: Product,
+          required: false  // LEFT JOIN để lấy cả order detail không có product (nếu product đã bị xóa)
+        }]
+      }],
+      order: [['order_id', 'DESC']]  // Sắp xếp theo order_id mới nhất
     });
     
+    console.log('Found', orders.length, 'orders for user', userId);
+    
+    // Serialize dữ liệu để tránh lỗi khi trả về JSON
+    // Sequelize tự động serialize, nhưng cần convert DECIMAL và xử lý null
+    const ordersData = orders.map(order => {
+      const orderJson = order.toJSON();
+      
+      // Convert DECIMAL to Number for total_price
+      if (orderJson.total_price != null) {
+        orderJson.total_price = parseFloat(orderJson.total_price) || 0;
+      }
+      
+      // Serialize OrderDetails nếu có
+      if (orderJson.OrderDetails && Array.isArray(orderJson.OrderDetails)) {
+        orderJson.OrderDetails = orderJson.OrderDetails.map(detail => {
+          const detailJson = detail.toJSON ? detail.toJSON() : detail;
+          
+          // Convert DECIMAL to Number for price
+          if (detailJson.price != null) {
+            detailJson.price = parseFloat(detailJson.price) || 0;
+          }
+          
+          // Convert quantity to Number
+          if (detailJson.quantity != null) {
+            detailJson.quantity = parseInt(detailJson.quantity) || 1;
+          }
+          
+          // Serialize Product nếu có
+          if (detailJson.Product) {
+            detailJson.Product = detailJson.Product.toJSON ? detailJson.Product.toJSON() : detailJson.Product;
+          } else {
+            // Nếu Product null, tạo object rỗng
+            detailJson.Product = {
+              product_id: detailJson.product_id,
+              name: 'Sản phẩm không tồn tại',
+              image_url: null
+            };
+          }
+          
+          return detailJson;
+        });
+      } else {
+        orderJson.OrderDetails = [];
+      }
+      
+      return orderJson;
+    });
+    
+    console.log('Serialized', ordersData.length, 'orders successfully');
+    
     // Trả về danh sách đơn hàng
-    return res.json(orders);
+    return res.json(ordersData);
   } catch (err) {
+    // Log lỗi để debug
+    console.error('Error in /api/orders/user/:id:', err);
     // Nếu có lỗi → trả lỗi 500 Internal Server Error
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 

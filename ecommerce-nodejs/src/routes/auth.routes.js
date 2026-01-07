@@ -147,27 +147,23 @@ router.get("/me", authenticate, async (req, res) => {
   try {
     // Tìm user theo user_id từ token
     // req.user.user_id: Lấy từ JWT token (đã được authenticate middleware decode)
-    // attributes: Chỉ lấy các trường được chỉ định (KHÔNG lấy password)
+    // attributes: exclude password để không trả về mật khẩu
     const user = await User.findByPk(req.user.user_id, {
-      attributes: [
-        "user_id",    // ID user
-        "name",       // Tên
-        "email",      // Email
-        "phone",      // Số điện thoại
-        "address",    // Địa chỉ
-        "role",       // Vai trò (user/admin)
-        "createdAt",  // Thời gian tạo tài khoản
-      ],
+      attributes: {
+        exclude: ['password'] // Loại bỏ password, lấy tất cả các trường khác
+      }
     });
     
     // Nếu không tìm thấy user (token hợp lệ nhưng user đã bị xóa) → trả lỗi 404
     if (!user) return res.status(404).json({ message: "User not found" });
     
-    // Trả về thông tin user
+    // Trả về thông tin user (Sequelize tự động serialize thành JSON)
     return res.json(user);
   } catch (err) {
+    // Log lỗi để debug
+    console.error('Error in /auth/me:', err);
     // Nếu có lỗi → trả lỗi 500 Internal Server Error
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
