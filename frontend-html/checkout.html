@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thanh toán - Web Mobile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body class="bg-light">
+    <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+      <div class="container">
+        <a class="navbar-brand fw-semibold" href="index.html">Web Mobile</a>
+        <div id="authBox" class="ms-auto"></div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header"><h5 class="mb-0">Thông tin thanh toán</h5></div>
+            <div class="card-body">
+              <form id="checkoutForm">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Họ tên</label>
+                    <input id="fullName" class="form-control" placeholder="Nguyen Van A" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Số điện thoại</label>
+                    <input id="phone" class="form-control" placeholder="0912345678" required>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Địa chỉ</label>
+                    <input id="address" class="form-control" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Phương thức thanh toán</label>
+                    <select id="paymentMethod" class="form-select">
+                      <option value="COD">Thanh toán khi nhận hàng (COD)</option>
+                      <option value="ONLINE">Thanh toán online</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                  <button class="btn btn-primary" type="submit">Đặt hàng</button>
+                  <a href="index.html" class="btn btn-outline-secondary">Tiếp tục mua</a>
+                </div>
+                <div id="msg" class="small mt-2"></div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header"><h6 class="mb-0">Đơn hàng của bạn</h6></div>
+            <div class="card-body">
+              <div id="orderItems" class="small"></div>
+              <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                <strong>Tổng</strong>
+                <strong id="orderTotal">0 đ</strong>
+              </div>
+              <div id="qrSection" class="mt-3" style="display:none;">
+                <div class="small text-muted mb-2">Quét mã để thanh toán</div>
+                <div class="text-center mb-2">
+                  <img id="qrImage" src="" alt="VietQR" class="img-fluid border rounded" style="max-height:240px;object-fit:contain">
+                </div>
+                <div class="small">
+                  <div class="d-flex justify-content-between"><span>Ngân hàng</span><strong id="bankCodeText"></strong></div>
+                  <div class="d-flex justify-content-between"><span>Số tài khoản</span><strong id="accountNoText"></strong></div>
+                  <div class="d-flex justify-content-between"><span>Tên tài khoản</span><strong id="accountNameText"></strong></div>
+                  <div class="d-flex justify-content-between"><span>Nội dung</span><strong id="addInfoText"></strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+      const API_BASE = 'http://localhost:3000/api';
+      const TOKEN_KEY = 'wm_token';
+      const CART_KEY = 'wm_cart_items';
+      const BANK_CODE = 'BIDV';
+      const ACCOUNT_NO = '2153430151';
+      const ACCOUNT_NAME = 'TRAN NGOC VIEN';
+      function getToken(){ try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } }
+      function loadCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
+      function saveCart(items){ localStorage.setItem(CART_KEY, JSON.stringify(items)); }
+      function currency(v){ try { return Number(v).toLocaleString('vi-VN') + ' đ'; } catch { return v; } }
+      function calcTotal(items){ return items.reduce((s, it) => s + (Number(it.price)||0) * (Number(it.qty)||1), 0); }
+      function resolveImageUrl(url){ if(!url) return url; if(/^https?:\/\//i.test(url)) return url; if(url.startsWith('/static/')) return url; if(url.startsWith('public/')) return '/static/' + url.substring('public/'.length); return '/static/' + url.replace(/^\/+/, ''); }
+      function buildOrderCode(){ const now = new Date(); return 'ORD' + now.getFullYear() + (now.getMonth()+1) + now.getDate() + '-' + Math.random().toString(36).slice(2,7).toUpperCase(); }
+      // function buildVietQRUrl(amount, addInfo){ const safeInfo = encodeURIComponent(addInfo||'Thanh toan don hang'); return `https://img.vietqr.io/image/${BANK_CODE}-${ACCOUNT_NO}.png?amount=${Math.round(amount)}&addInfo=${safeInfo}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`; }
+      function buildVietQRUrl(amount, addInfo) {
+  const safeInfo = encodeURIComponent(addInfo || 'Thanh toan don hang');
+  return `https://img.vietqr.io/image/${BANK_CODE}-${ACCOUNT_NO}-compact.png?amount=${Math.round(amount)}&addInfo=${safeInfo}&accountName=${encodeURIComponent(ACCOUNT_NAME)}`;
+}
+
+      function renderSummary(){
+        const items = loadCart();
+        const $list = $('#orderItems');
+        $list.empty();
+        if(!items.length){ $list.append('<div class="text-muted">Giỏ hàng trống</div>'); }
+        items.forEach(it => {
+          const href = `product_detail.html?id=${it.id}`;
+          const img = it.image ? `<a href="${href}" class="me-2 flex-shrink-0 d-inline-flex align-items-center justify-content-center bg-light rounded" style="width:38px;height:38px;overflow:hidden"><img src="${resolveImageUrl(it.image)}" alt="${it.name||'image'}" style="max-width:100%;max-height:100%;object-fit:contain"></a>` : '';
+          $list.append(`<div class="d-flex align-items-center justify-content-between py-1 border-bottom">
+            <div class="d-flex align-items-center">
+              ${img}
+              <a href="${href}" class="text-decoration-none">${it.name} × ${it.qty}</a>
+            </div>
+            <span>${currency((Number(it.price)||0)*(Number(it.qty)||1))}</span>
+          </div>`);
+        });
+        const total = calcTotal(items);
+        $('#orderTotal').text(currency(total));
+        const pm = $('#paymentMethod').val();
+        if(pm === 'ONLINE'){
+          const orderCode = buildOrderCode();
+          const qrUrl = buildVietQRUrl(total, orderCode);
+          $('#qrImage').attr('src', qrUrl);
+          $('#bankCodeText').text(BANK_CODE);
+          $('#accountNoText').text(ACCOUNT_NO);
+          $('#accountNameText').text(ACCOUNT_NAME);
+          $('#addInfoText').text(orderCode);
+          $('#qrSection').show();
+        } else {
+          $('#qrSection').hide();
+        }
+      }
+
+      async function renderAuth(){
+        const token = getToken();
+        const box = document.getElementById('authBox');
+        if(!box) return;
+        if(token){
+          let displayName = 'Tài khoản';
+          try {
+            const me = await $.ajax({ url: API_BASE + '/auth/me', headers: { Authorization: 'Bearer ' + token } });
+            if (me && (me.name || me.email)) displayName = me.name || me.email;
+          } catch {}
+          box.innerHTML = `<div class="dropdown">\
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">${displayName}</button>\
+            <ul class="dropdown-menu dropdown-menu-end">\
+              <li><a class="dropdown-item" href="change_password.html">Đổi mật khẩu</a></li>\
+              <li><a class="dropdown-item" href="#" id="btnLogout">Đăng xuất</a></li>\
+            </ul>\
+          </div>`;
+        } else {
+          box.innerHTML = '<a class="btn btn-outline-primary" href="login.html">Đăng nhập</a>\
+            <a class="btn btn-primary" href="register.html">Đăng ký</a>';
+        }
+      }
+      function bindLogout(){
+        $(document).off('click', '#btnLogout').on('click', '#btnLogout', function(e){
+          e.preventDefault();
+          const t = getToken();
+          $.ajax({ url: API_BASE + '/auth/logout', method: 'POST', headers: t ? { Authorization: 'Bearer ' + t } : {} })
+            .always(function(){ localStorage.removeItem(TOKEN_KEY); renderAuth(); window.location.href = 'index.html'; });
+        });
+      }
+
+      function prefillUser(){ const token = getToken(); if(!token) return; $.ajax({ url: API_BASE + '/auth/me', headers: { Authorization: 'Bearer ' + token } })
+        .then(me => { if(me){ if(me.name) $('#fullName').val(me.name); if(me.phone) $('#phone').val(me.phone); if(me.address) $('#address').val(me.address); } })
+        .catch(()=>{});
+      }
+
+      $('#checkoutForm').on('submit', function(e){
+        e.preventDefault();
+        const token = getToken();
+        if(!token){ $('#msg').removeClass('text-success').addClass('text-danger').text('Bạn cần đăng nhập để đặt hàng.'); return; }
+        const items = loadCart();
+        if(!items.length){ $('#msg').removeClass('text-success').addClass('text-danger').text('Giỏ hàng trống.'); return; }
+        const normalized = items.map(it => ({ product_id: it.id, quantity: Number(it.qty)||1, price: Number(it.price)||0 }));
+        const payload = { items: normalized, payment_method: $('#paymentMethod').val() };
+        $.ajax({ url: API_BASE + '/orders', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload), headers: { Authorization: 'Bearer ' + token } })
+          .then(order => { $('#msg').removeClass('text-danger').addClass('text-success').text('Đặt hàng thành công!'); saveCart([]); setTimeout(() => { window.location.href = 'index.html'; }, 1200); })
+          .catch(err => { const message = (err && err.responseJSON && err.responseJSON.message) || 'Đặt hàng thất bại'; $('#msg').removeClass('text-success').addClass('text-danger').text(message); });
+      });
+
+      $(function(){ renderAuth(); bindLogout(); renderSummary(); prefillUser(); $('#paymentMethod').on('change', renderSummary); });
+    </script>
+  </body>
+
+
+
